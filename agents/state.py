@@ -14,6 +14,7 @@ class PipelineState(BaseModel):
     code: str = ""
     test_code: str = ""
     explanation: str = ""
+    code_history: list[str] = []  # every attempt, so the eval can grade the first try too
 
     # Tester output
     test_passed: bool = False

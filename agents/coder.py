@@ -49,6 +49,7 @@ behaviour with plain assert statements, including edge cases. It is run with
 
     return {
         "code": result.code,
+        "code_history": state.code_history + [result.code],
         "test_code": result.test_code,
         "explanation": result.explanation,
         "status": "testing",

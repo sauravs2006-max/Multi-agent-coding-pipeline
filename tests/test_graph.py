@@ -27,3 +27,13 @@ def test_reviewer_cannot_approve_failed_tests(monkeypatch):
     assert result["approved"] is False
     assert result["status"] == "coding"
     assert "tests failed" in result["review_feedback"]
+
+
+def test_coder_keeps_every_attempt(monkeypatch):
+    from agents import coder
+
+    monkeypatch.setattr(coder, "ask_json", lambda prompt, schema: schema(code="v2", test_code="t", explanation="e"))
+    state = PipelineState(task_description="t", code="v1", code_history=["v1"], iteration_count=1, review_feedback="fix it")
+    result = coder.coder_node(state)
+    assert result["code_history"] == ["v1", "v2"]
+    assert result["iteration_count"] == 2
