@@ -7,6 +7,7 @@ from prometheus_client import REGISTRY
 from pydantic import BaseModel
 
 from agents import llm
+from agents.breaker import CircuitOpenError
 
 
 def metric(name, **labels):
@@ -26,7 +27,7 @@ def api_error(code, retry_delay=None):
 
 @pytest.fixture(autouse=True)
 def fresh_breaker(monkeypatch):
-    monkeypatch.setattr(llm, "breaker", llm.CircuitBreaker(threshold=5, cooldown=30))
+    monkeypatch.setattr(llm, "breaker", llm.CircuitBreaker("gemini", threshold=5, cooldown=30))
     monkeypatch.setattr(llm.time, "sleep", lambda seconds: None)
 
 
@@ -80,11 +81,11 @@ def test_gives_up_after_max_attempts(monkeypatch):
 def test_circuit_opens_and_fails_fast(monkeypatch):
     calls = fake_generate(monkeypatch, [api_error(503)] * 5)
     for _ in range(2):  # 3 + 2 failed attempts hits the threshold of 5
-        with pytest.raises(llm.LLMError):
+        with pytest.raises((llm.LLMError, CircuitOpenError)):
             llm.ask_json("p", Answer)
     assert len(calls) == 5
 
-    with pytest.raises(llm.CircuitOpenError):
+    with pytest.raises(CircuitOpenError):
         llm.ask_json("p", Answer)
     assert len(calls) == 5  # gemini wasn't called while open
 
@@ -150,11 +151,11 @@ def test_circuit_gauge(monkeypatch):
     monkeypatch.setattr(llm.time, "monotonic", lambda: now[0])
     for _ in range(5):
         llm.breaker.record_failure()
-    assert metric("llm_circuit_open") == 1
+    assert metric("circuit_open", dependency="gemini") == 1
 
     now[0] += 31
     llm.breaker.check()  # half-open
-    assert metric("llm_circuit_open") == 0
+    assert metric("circuit_open", dependency="gemini") == 0
 
 
 def test_half_open_after_cooldown(monkeypatch):
@@ -164,13 +165,13 @@ def test_half_open_after_cooldown(monkeypatch):
     for _ in range(5):
         breaker.record_failure()
 
-    with pytest.raises(llm.CircuitOpenError):
+    with pytest.raises(CircuitOpenError):
         breaker.check()
 
     now[0] += 31
     breaker.check()  # trial call allowed
     breaker.record_failure()  # one failure in half-open reopens it
-    with pytest.raises(llm.CircuitOpenError):
+    with pytest.raises(CircuitOpenError):
         breaker.check()
 
     now[0] += 31

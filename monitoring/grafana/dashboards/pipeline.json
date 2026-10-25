@@ -291,8 +291,8 @@
     },
     {
       "type": "stat",
-      "title": "Circuit breaker",
-      "description": "Open means 5 Gemini failures in a row; calls fail fast for 30s.",
+      "title": "Circuit breakers",
+      "description": "Open means repeated failures (5 for Gemini, 3 for the sandbox service); calls fail fast for 30s.",
       "targets": [
         {
           "refId": "A",
@@ -300,8 +300,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max(llm_circuit_open)",
-          "legendFormat": "",
+          "expr": "max by (dependency) (circuit_open)",
+          "legendFormat": "{{dependency}}",
           "instant": true,
           "range": false,
           "format": "time_series"
@@ -357,7 +357,7 @@
         },
         "colorMode": "value",
         "graphMode": "none",
-        "textMode": "value",
+        "textMode": "value_and_name",
         "justifyMode": "auto"
       },
       "id": 6,

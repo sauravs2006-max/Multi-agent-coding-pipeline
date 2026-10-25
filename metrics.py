@@ -17,7 +17,7 @@ PIPELINE_ITERATIONS = Histogram("pipeline_iterations", "Coder iterations per fin
 LLM_CALLS = Counter("llm_calls_total", "ask_json calls", ["outcome"])
 LLM_ATTEMPTS = Counter("llm_attempts_total", "Requests sent to Gemini, by result", ["result"])
 LLM_RETRIES = Counter("llm_retries_total", "Gemini attempts that failed and were retried")
-CIRCUIT_OPEN = Gauge("llm_circuit_open", "1 while the circuit breaker is open")
+CIRCUIT_OPEN = Gauge("circuit_open", "1 while a circuit breaker is open", ["dependency"])
 
 SANDBOX_RUNS = Counter("sandbox_runs_total", "Sandbox runs by result", ["result"])
 
@@ -38,5 +38,5 @@ for outcome in ("success", "failed"):
     LLM_CALLS.labels(outcome)
 for result in ("ok", "rate_limited", "server_error", "timeout", "bad_json", "client_error"):
     LLM_ATTEMPTS.labels(result)
-for result in ("passed", "failed", "timeout", "killed", "no_tests"):
+for result in ("passed", "failed", "timeout", "killed", "no_tests", "unavailable"):
     SANDBOX_RUNS.labels(result)

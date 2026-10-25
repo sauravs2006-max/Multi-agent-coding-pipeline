@@ -9,7 +9,8 @@ import httpx
 from google import genai
 from google.genai import errors, types
 
-from metrics import CIRCUIT_OPEN, LLM_ATTEMPTS, LLM_CALLS, LLM_RETRIES
+from metrics import LLM_ATTEMPTS, LLM_CALLS, LLM_RETRIES
+from .breaker import CircuitBreaker
 
 log = logging.getLogger(__name__)
 
@@ -28,41 +29,8 @@ class LLMError(Exception):
     pass
 
 
-class CircuitOpenError(LLMError):
-    pass
-
-
-class CircuitBreaker:
-    def __init__(self, threshold=5, cooldown=30):
-        self.threshold = threshold
-        self.cooldown = cooldown
-        self.failures = 0
-        self.opened_at = None
-
-    def check(self):
-        if self.opened_at is None:
-            return
-        waited = time.monotonic() - self.opened_at
-        if waited < self.cooldown:
-            raise CircuitOpenError(f"circuit open, gemini failing (retry in {self.cooldown - waited:.0f}s)")
-        # half-open: let one call through, and a single failure reopens it
-        self.opened_at = None
-        self.failures = self.threshold - 1
-        CIRCUIT_OPEN.set(0)
-
-    def record_success(self):
-        self.failures = 0
-
-    def record_failure(self):
-        self.failures += 1
-        if self.failures >= self.threshold and self.opened_at is None:
-            self.opened_at = time.monotonic()
-            CIRCUIT_OPEN.set(1)
-            log.warning("circuit opened after %d failures", self.failures)
-
-
 # one per worker process, shared by every task that worker runs
-breaker = CircuitBreaker()
+breaker = CircuitBreaker("gemini")
 
 
 @cache
