@@ -468,6 +468,18 @@
           {
             "matcher": {
               "id": "byName",
+              "options": "Agent"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
               "options": "P50"
             },
             "properties": [
@@ -478,6 +490,10 @@
               {
                 "id": "decimals",
                 "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 100
               }
             ]
           },
@@ -494,6 +510,10 @@
               {
                 "id": "decimals",
                 "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 100
               }
             ]
           },
@@ -510,6 +530,10 @@
               {
                 "id": "decimals",
                 "value": 0
+              },
+              {
+                "id": "custom.width",
+                "value": 120
               }
             ]
           },
@@ -522,6 +546,10 @@
               {
                 "id": "decimals",
                 "value": 0
+              },
+              {
+                "id": "custom.width",
+                "value": 80
               }
             ]
           }
