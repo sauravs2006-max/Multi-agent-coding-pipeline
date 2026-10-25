@@ -1,0 +1,4 @@
+Write a function flatten(nested) that takes a list which may contain other lists, nested to
+any depth, and returns a new flat list of all the non-list elements in order.
+Only lists are flattened: tuples, strings and other values are kept as single elements.
+For example flatten([1, [2, [3, (4, 5)]], "ab"]) is [1, 2, 3, (4, 5), "ab"].

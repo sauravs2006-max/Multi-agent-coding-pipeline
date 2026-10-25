@@ -1,0 +1,5 @@
+Write a function solve_sudoku(board) where board is a 9x9 list of lists of ints and 0 means an
+empty cell. Return a new 9x9 list of lists with every cell filled so that each row, each
+column and each 3x3 box contains the digits 1-9 exactly once, keeping all the given numbers.
+Don't modify the input board. Return None if the puzzle has no solution, including when the
+given numbers already break the rules (for example two 5s in the same row).

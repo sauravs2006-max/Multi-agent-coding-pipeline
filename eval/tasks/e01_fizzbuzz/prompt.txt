@@ -1,0 +1,4 @@
+Write a function fizzbuzz(n) that returns a list of strings for the numbers 1 to n.
+Multiples of 3 become "Fizz", multiples of 5 become "Buzz", multiples of both become
+"FizzBuzz", and every other number becomes its decimal string, e.g. "7".
+fizzbuzz(0) returns an empty list. Raise ValueError if n is negative.

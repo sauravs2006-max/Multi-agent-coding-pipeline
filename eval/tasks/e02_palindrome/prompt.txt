@@ -1,0 +1,4 @@
+Write a function is_palindrome(s) that returns True if s reads the same forwards and
+backwards when you only look at its letters and digits (str.isalnum) and ignore case.
+Everything else (spaces, punctuation, underscores) is skipped. A string with no letters
+or digits, including the empty string, counts as a palindrome.

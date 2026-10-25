@@ -1,0 +1,4 @@
+Write a function second_largest(nums) that returns the second largest distinct value in
+a list of integers, or None if the list has fewer than two distinct values.
+For example second_largest([3, 3, 2]) is 2 and second_largest([2, 2]) is None.
+Don't modify the input list.

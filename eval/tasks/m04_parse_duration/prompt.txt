@@ -1,0 +1,6 @@
+Write a function parse_duration(s) that turns a duration like "1h30m15s" into a number of
+seconds (an int). The format is up to three parts in this order: hours "h", minutes "m",
+seconds "s". Each part is a non-negative integer followed by its lowercase unit, each part is
+optional but at least one must be there, and there are no spaces. So "45s" is 45, "2h" is
+7200 and "1h0m5s" is 3605. Raise ValueError for anything else, e.g. "", "30m1h" (wrong
+order), "1h1h" (repeated), "5d", "h", "1.5h", "-5s", "1h 30m", "90", "5S".

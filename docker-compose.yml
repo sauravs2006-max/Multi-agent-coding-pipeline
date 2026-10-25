@@ -81,6 +81,20 @@ services:
       - api
       - worker
 
+  # the benchmark runner: docker compose --profile tools run --rm eval python eval/run_eval.py --runs 3
+  # it talks to the sandbox directly to run the hidden tests, so it lives on the compose network
+  eval:
+    image: pipeline-app
+    profiles: ["tools"]
+    environment:
+      API_URL: http://api:8000
+      SANDBOX_URL: http://sandbox:8080
+    volumes:
+      - ./eval:/app/eval
+    depends_on:
+      - api
+      - sandbox
+
   # only runs when asked for: docker compose --profile tools run --rm loadtest ...
   loadtest:
     image: locustio/locust:2.46.6

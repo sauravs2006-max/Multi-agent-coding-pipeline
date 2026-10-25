@@ -1,0 +1,6 @@
+Write a function shortest_path(graph, start, end) for a directed graph given as a dict that
+maps each node to a dict of {neighbour: weight}, with non-negative numeric weights.
+Return a tuple (distance, path) where path is the list of nodes from start to end along a
+cheapest route. If start == end, return (0, [start]). If end can't be reached, return
+(math.inf, []). A node may appear only as a neighbour and not as a key (it has no outgoing
+edges), and start or end may not appear in the graph at all.

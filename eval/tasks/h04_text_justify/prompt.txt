@@ -1,0 +1,10 @@
+Write a function justify(words, width) that lays out a list of words as fully justified lines,
+each exactly width characters long, and returns the list of lines.
+- Pack words greedily: put as many words on each line as fit with at least one space between them.
+- Spread the extra spaces between the words as evenly as possible. If they don't divide evenly,
+  the gaps on the left get one more space than the gaps on the right.
+- The last line is left-justified: words separated by single spaces, padded with spaces on the
+  right to the full width. A line with only one word is also left-justified that way.
+- An empty list of words returns []. Raise ValueError if any word is longer than width.
+For example justify(["This", "is", "an", "example", "of", "text", "justification."], 16) returns
+["This    is    an", "example  of text", "justification.  "].

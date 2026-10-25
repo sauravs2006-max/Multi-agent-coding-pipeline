@@ -1,0 +1,6 @@
+Write two functions for Roman numerals:
+- int_to_roman(n) converts an integer from 1 to 3999 to its standard Roman numeral
+  (subtractive forms like IV, IX, XL, XC, CD, CM). Raise ValueError outside 1..3999.
+- roman_to_int(s) converts a Roman numeral string back to an integer. Only accept the
+  canonical uppercase form that int_to_roman would produce for some number; anything else
+  (empty string, lowercase, "IIII", "VV", "IC", "IIX", unknown letters) raises ValueError.

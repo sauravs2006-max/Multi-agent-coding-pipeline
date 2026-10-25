@@ -1,0 +1,4 @@
+Write a function word_frequencies(text) that returns a dict mapping each word to how many
+times it appears. A word is a maximal run of ASCII letters (a-z, A-Z); everything else
+separates words. Words are lowercased. So "Don't stop" gives {"don": 1, "t": 1, "stop": 1}
+and text with no letters gives an empty dict.

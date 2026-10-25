@@ -1,0 +1,7 @@
+Write a function evaluate(expr) that evaluates an arithmetic expression given as a string and
+returns its value as a number. Support +, -, * and / with the usual precedence (* and / before
++ and -), left to right within the same precedence, parentheses, unary minus (which can be
+repeated, so "--3" is 3), integers and decimals like 3.5, and spaces between tokens.
+/ is true division, so "10 / 4" is 2.5. Raise ZeroDivisionError when dividing by zero and
+ValueError for anything malformed, e.g. "", "2 +", "(1", "1)", "2 ** 3", "1 2", "()", "abc".
+Don't use eval(), exec() or compile(); parse the expression yourself.

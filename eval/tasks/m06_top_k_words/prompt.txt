@@ -1,0 +1,5 @@
+Write a function top_k_frequent(words, k) that takes a list of strings and returns the k most
+frequent ones as a list, most frequent first. Ties are broken alphabetically (so "apple"
+comes before "banana" when both appear the same number of times). If k is larger than the
+number of distinct words, return all of them. k == 0 returns []. Raise ValueError if k < 0.
+Words are compared exactly as given (case-sensitive).
