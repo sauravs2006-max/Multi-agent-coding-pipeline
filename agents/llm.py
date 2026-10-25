@@ -2,6 +2,7 @@ import logging
 import os
 import random
 import time
+from collections import deque
 from functools import cache
 
 import httpx
@@ -16,7 +17,11 @@ MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
 TIMEOUT_MS = 30_000
 MAX_ATTEMPTS = 3
 BASE_DELAY = 2
+MAX_RETRY_DELAY = 60
 RETRYABLE_CODES = {429, 500, 502, 503, 504}
+# the free tier allows 15 requests/min, so stay under it instead of finding out
+# from a 429. counted per worker process. 0 turns it off
+MAX_RPM = int(os.getenv("LLM_MAX_RPM", "0"))
 
 
 class LLMError(Exception):
@@ -69,6 +74,32 @@ def get_client():
     )
 
 
+_recent_calls = deque()
+
+
+def _wait_for_rate_limit():
+    if not MAX_RPM:
+        return
+    now = time.monotonic()
+    while _recent_calls and now - _recent_calls[0] >= 60:
+        _recent_calls.popleft()
+    if len(_recent_calls) >= MAX_RPM:
+        wait = 60 - (now - _recent_calls[0])
+        log.info("rate limit, waiting %.1fs", wait)
+        time.sleep(wait)
+        _recent_calls.popleft()
+    _recent_calls.append(time.monotonic())
+
+
+def _retry_delay(error, attempt):
+    # a 429 says how long to wait (49s when I tested the free tier), so use that
+    if isinstance(error, errors.APIError) and error.code == 429 and isinstance(error.details, dict):
+        for detail in error.details.get("error", {}).get("details", []):
+            if detail.get("@type", "").endswith("RetryInfo") and "retryDelay" in detail:
+                return float(detail["retryDelay"].rstrip("s"))
+    return BASE_DELAY * 2 ** (attempt - 1) + random.uniform(0, 1)
+
+
 def _generate(prompt, schema):
     return get_client().models.generate_content(
         model=MODEL,
@@ -94,6 +125,7 @@ def ask_json(prompt, schema):
 def _ask_with_retries(prompt, schema):
     for attempt in range(1, MAX_ATTEMPTS + 1):
         breaker.check()
+        _wait_for_rate_limit()
         try:
             response = _generate(prompt, schema)
         except errors.APIError as e:
@@ -118,7 +150,11 @@ def _ask_with_retries(prompt, schema):
 
         log.warning("gemini attempt %d/%d failed: %s", attempt, MAX_ATTEMPTS, last_error)
         if attempt < MAX_ATTEMPTS:
+            delay = _retry_delay(last_error, attempt)
+            if delay > MAX_RETRY_DELAY:
+                # usually the daily quota, waiting inside one task won't help
+                raise LLMError(f"gemini asked to wait {delay:.0f}s, giving up") from last_error
             LLM_RETRIES.inc()
-            time.sleep(BASE_DELAY * 2 ** (attempt - 1) + random.uniform(0, 1))
+            time.sleep(delay)
 
     raise LLMError(f"gemini failed after {MAX_ATTEMPTS} attempts: {last_error}") from last_error

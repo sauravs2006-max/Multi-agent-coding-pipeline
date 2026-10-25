@@ -17,8 +17,11 @@ class Answer(BaseModel):
     value: int
 
 
-def api_error(code):
-    return errors.APIError(code, {"error": {"code": code, "message": "test", "status": "TEST"}})
+def api_error(code, retry_delay=None):
+    body = {"error": {"code": code, "message": "test", "status": "TEST", "details": []}}
+    if retry_delay:
+        body["error"]["details"].append({"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": retry_delay})
+    return errors.APIError(code, body)
 
 
 @pytest.fixture(autouse=True)
@@ -84,6 +87,43 @@ def test_circuit_opens_and_fails_fast(monkeypatch):
     with pytest.raises(llm.CircuitOpenError):
         llm.ask_json("p", Answer)
     assert len(calls) == 5  # gemini wasn't called while open
+
+
+def test_429_waits_as_long_as_gemini_asks(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(llm.time, "sleep", sleeps.append)
+    fake_generate(monkeypatch, [api_error(429, retry_delay="49s"), Answer(value=1)])
+    assert llm.ask_json("p", Answer).value == 1
+    assert sleeps == [49.0]
+
+
+def test_gives_up_when_asked_to_wait_too_long(monkeypatch):
+    calls = fake_generate(monkeypatch, [api_error(429, retry_delay="3600s"), Answer(value=1)])
+    with pytest.raises(llm.LLMError, match="asked to wait"):
+        llm.ask_json("p", Answer)
+    assert len(calls) == 1
+
+
+def test_rate_limiter_spreads_calls(monkeypatch):
+    now = [0.0]
+    sleeps = []
+
+    def fake_sleep(seconds):
+        sleeps.append(seconds)
+        now[0] += seconds
+
+    monkeypatch.setattr(llm.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(llm.time, "sleep", fake_sleep)
+    monkeypatch.setattr(llm, "MAX_RPM", 3)
+    monkeypatch.setattr(llm, "_recent_calls", llm.deque())
+
+    for _ in range(3):  # first 3 in the window go straight through
+        llm._wait_for_rate_limit()
+        now[0] += 1
+    assert sleeps == []
+
+    llm._wait_for_rate_limit()  # 4th waits until the first falls out of the 60s window
+    assert sleeps == [57.0]
 
 
 def test_metrics_count_attempts_and_retries(monkeypatch):
