@@ -36,7 +36,15 @@ Respond ONLY with JSON in this exact format, no other text:
 
     parsed = json.loads(raw)
 
+    if parsed["approved"]:
+        status = "done"
+    elif state.iteration_count >= state.max_iterations:
+        status = "failed"
+    else:
+        status = "coding"
+
     return {
         "approved": parsed["approved"],
         "review_feedback": parsed.get("review_feedback"),
+        "status": status,
     }

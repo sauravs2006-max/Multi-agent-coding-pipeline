@@ -9,12 +9,10 @@ from agents.reviewer import reviewer_node
 
 
 def route_after_review(state: PipelineState) -> str:
-    if state.approved:
-        return "done"
-    elif state.iteration_count >= state.max_iterations:
-        return "failed"
-    else:
+    # routers can't update state, so reviewer_node decides the status and this just reads it
+    if state.status == "coding":
         return "coder"
+    return state.status
 
 
 graph = StateGraph(PipelineState)
