@@ -1,0 +1,12 @@
+CONTAINER ID   NAME                                                    CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O         PIDS
+644871fcdcb4   multi-agent-coding-pipeline-loadtest-run-b9a0df09035e   7.89%     40.68MiB / 9.572GiB   0.42%     1.55MB / 1.78MB   0B / 0B           1
+3653d8e959e8   multi-agent-coding-pipeline-worker-4                    0.01%     145.5MiB / 9.572GiB   1.48%     208kB / 243kB     0B / 0B           2
+b65e48379a24   multi-agent-coding-pipeline-worker-3                    0.84%     146.8MiB / 9.572GiB   1.50%     207kB / 244kB     0B / 0B           2
+2d2bb9c20a83   multi-agent-coding-pipeline-worker-2                    0.67%     146.1MiB / 9.572GiB   1.49%     204kB / 238kB     0B / 0B           2
+d3f109837dc1   multi-agent-coding-pipeline-api-1                       12.62%    140.8MiB / 9.572GiB   1.44%     16.5MB / 16.1MB   0B / 0B           4
+d5ee1e531886   multi-agent-coding-pipeline-worker-1                    1.50%     156.2MiB / 9.572GiB   1.59%     1.3MB / 2.35MB    0B / 0B           2
+a5718179d8cd   multi-agent-coding-pipeline-grafana-1                   0.38%     92.72MiB / 9.572GiB   0.95%     26.9MB / 691kB    2.16MB / 99.7MB   23
+001214e81243   multi-agent-coding-pipeline-prometheus-1                0.35%     21.91MiB / 9.572GiB   0.22%     1.74MB / 583kB    1.03MB / 2.12MB   13
+115fb75f342b   multi-agent-coding-pipeline-redis-1                     5.01%     4.535MiB / 9.572GiB   0.05%     10.4MB / 9.56MB   0B / 393kB        6
+36481fadbd31   multi-agent-coding-pipeline-sandbox-1                   2.72%     44.61MiB / 9.572GiB   0.46%     267kB / 180kB     0B / 0B           3
+13aa98cc7334   redis-dev                                               0.18%     12.73MiB / 9.572GiB   0.13%     765kB / 703kB     33.9MB / 16.4kB   13

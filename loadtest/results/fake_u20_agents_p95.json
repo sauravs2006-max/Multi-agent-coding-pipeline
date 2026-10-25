@@ -1,0 +1,1 @@
+{"status":"success","data":{"resultType":"vector","result":[{"metric":{"agent":"planner"},"value":[1792913597.212,"1.9499999999999997"]},{"metric":{"agent":"coder"},"value":[1792913597.212,"1.95"]},{"metric":{"agent":"tester"},"value":[1792913597.212,"0.9749999999999999"]},{"metric":{"agent":"reviewer"},"value":[1792913597.212,"1.9499999999999997"]}]}}

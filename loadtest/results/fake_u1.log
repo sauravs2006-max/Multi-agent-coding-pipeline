@@ -1,0 +1,29 @@
+ Container multi-agent-coding-pipeline-loadtest-run-0328f5e5a9eb Creating 
+ Container multi-agent-coding-pipeline-loadtest-run-0328f5e5a9eb Created 
+[2026-10-25 07:15:43,537] 9d9c21c503d4/INFO/locust.main: Starting Locust 2.46.6
+[2026-10-25 07:15:43,546] 9d9c21c503d4/INFO/locust.main: Run time limit set to 240 seconds
+[2026-10-25 07:15:43,551] 9d9c21c503d4/INFO/locust.runners: Ramping to 1 users at a rate of 1.00 per second
+[2026-10-25 07:15:43,551] 9d9c21c503d4/INFO/locust.runners: All users spawned: {"PipelineUser": 1} (1 total users)
+[2026-10-25 07:19:43,293] 9d9c21c503d4/INFO/locust.main: --run-time limit reached, shutting down
+[2026-10-25 07:19:43,393] 9d9c21c503d4/INFO/locust.main: Shutting down (exit code 0)
+Type     Name                                                                          # reqs      # fails |    Avg     Min     Max    Med |   req/s  failures/s
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+GET      GET /tasks/[id]                                                                  375     0(0.00%) |      4       2       9      4 |    1.57        0.00
+POST     POST /tasks                                                                       35     0(0.00%) |      6       4      13      6 |    0.15        0.00
+PIPELINE  end to end                                                                        34     0(0.00%) |   5562    5549    5575   5575 |    0.14        0.00
+PIPELINE  processing                                                                        34     0(0.00%) |   5050    5040    5067   5067 |    0.14        0.00
+PIPELINE  queue wait                                                                        35     0(0.00%) |    511     507     518    510 |    0.15        0.00
+--------|----------------------------------------------------------------------------|-------|-------------|-------|-------|-------|-------|--------|-----------
+         Aggregated                                                                       513     0(0.00%) |    741       2    5575      4 |    2.14        0.00
+
+Response time percentiles (approximated)
+Type     Name                                                                                  50%    66%    75%    80%    90%    95%    98%    99%  99.9% 99.99%   100% # reqs
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+GET      GET /tasks/[id]                                                                         4      4      4      5      6      8      8      9      9      9      9    375
+POST     POST /tasks                                                                             6      8      8      8     10     12     13     13     13     13     13     35
+PIPELINE end to end                                                                           5600   5600   5600   5600   5600   5600   5600   5600   5600   5600   5600     34
+PIPELINE processing                                                                           5100   5100   5100   5100   5100   5100   5100   5100   5100   5100   5100     34
+PIPELINE queue wait                                                                            510    510    510    510    510    520    520    520    520    520    520     35
+--------|--------------------------------------------------------------------------------|--------|------|------|------|------|------|------|------|------|------|------|------
+         Aggregated                                                                              4      5      8    510   5000   5600   5600   5600   5600   5600   5600    513
+
