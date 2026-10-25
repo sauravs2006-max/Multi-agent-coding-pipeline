@@ -10,21 +10,31 @@ class Review(BaseModel):
 
 
 def reviewer_node(state: PipelineState) -> dict:
-    prompt = f"""You are a code review agent. Review this code and its test results.
+    prompt = f"""You are a code review agent. Review this code, its tests and the test results.
 
-Code:
+Code (solution.py):
 {state.code}
+
+Tests (test_solution.py):
+{state.test_code}
 
 Test passed: {state.test_passed}
 Stdout: {state.stdout}
 Stderr: {state.stderr}
 
-If the code is correct and tests passed, approve it.
-If not, explain exactly what needs to be fixed in review_feedback."""
+Approve only if the code is correct and the tests actually check the task,
+including edge cases. Tests that assert nothing meaningful are not enough.
+If not approved, explain exactly what needs to be fixed in review_feedback."""
 
     review = ask_json(prompt, Review)
 
-    if review.approved:
+    # the rule lives in code, the LLM can't approve code that failed its tests
+    approved = review.approved and state.test_passed
+    feedback = review.review_feedback
+    if review.approved and not state.test_passed:
+        feedback = "The tests failed. Fix the code (or a wrong test) using the test stderr."
+
+    if approved:
         status = "done"
     elif state.iteration_count >= state.max_iterations:
         status = "failed"
@@ -32,7 +42,7 @@ If not, explain exactly what needs to be fixed in review_feedback."""
         status = "coding"
 
     return {
-        "approved": review.approved,
-        "review_feedback": review.review_feedback,
+        "approved": approved,
+        "review_feedback": feedback,
         "status": status,
     }

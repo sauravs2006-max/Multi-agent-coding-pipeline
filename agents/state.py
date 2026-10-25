@@ -12,7 +12,7 @@ class PipelineState(BaseModel):
 
     # Coder output
     code: str = ""
-    file_name: str = ""
+    test_code: str = ""
     explanation: str = ""
 
     # Tester output

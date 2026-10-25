@@ -18,3 +18,12 @@ def test_reviewer_sets_status(monkeypatch, approved, iteration_count, expected):
     monkeypatch.setattr(reviewer, "ask_json", lambda prompt, schema: schema(approved=approved))
     state = PipelineState(task_description="t", iteration_count=iteration_count, test_passed=True)
     assert reviewer.reviewer_node(state)["status"] == expected
+
+
+def test_reviewer_cannot_approve_failed_tests(monkeypatch):
+    monkeypatch.setattr(reviewer, "ask_json", lambda prompt, schema: schema(approved=True))
+    state = PipelineState(task_description="t", iteration_count=1, test_passed=False)
+    result = reviewer.reviewer_node(state)
+    assert result["approved"] is False
+    assert result["status"] == "coding"
+    assert "tests failed" in result["review_feedback"]
