@@ -19,7 +19,12 @@ for users in "$@"; do
   echo "== $name: $users users for $duration"
 
   # snapshot cpu/memory halfway through, to see which container is the bottleneck
-  (sleep 120 && docker stats --no-stream > "$results/${name}_docker_stats.txt") &
+  case $duration in
+    *m) seconds=$(( ${duration%m} * 60 )) ;;
+    *s) seconds=${duration%s} ;;
+    *) seconds=240 ;;
+  esac
+  (sleep $(( seconds / 2 )) && docker stats --no-stream > "$results/${name}_docker_stats.txt") &
 
   docker compose --profile tools run --rm --no-deps loadtest --headless \
     -u "$users" -r "$users" -t "$duration" \
