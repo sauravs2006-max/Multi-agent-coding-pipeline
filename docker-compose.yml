@@ -39,6 +39,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       SANDBOX_URL: http://sandbox:8080
       LLM_MAX_RPM: ${LLM_MAX_RPM:-14}  # per worker, the free tier allows 15/min in total
+      FAKE_LLM: ${FAKE_LLM:-0}  # 1 = canned replies, only for load testing the infrastructure
+      FAKE_LLM_LATENCY: ${FAKE_LLM_LATENCY:-1.5}
     depends_on:
       redis:
         condition: service_healthy
@@ -78,6 +80,17 @@ services:
     depends_on:
       - api
       - worker
+
+  # only runs when asked for: docker compose --profile tools run --rm loadtest ...
+  loadtest:
+    image: locustio/locust:2.46.6
+    profiles: ["tools"]
+    volumes:
+      - ./loadtest:/mnt/loadtest
+    working_dir: /mnt/loadtest
+    entrypoint: ["locust", "-f", "/mnt/loadtest/locustfile.py", "--host", "http://api:8000"]
+    depends_on:
+      - api
 
   grafana:
     image: grafana/grafana:12.0.2

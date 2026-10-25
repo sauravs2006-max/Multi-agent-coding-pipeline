@@ -4,6 +4,7 @@ import random
 import time
 from collections import deque
 from functools import cache
+from types import SimpleNamespace
 
 import httpx
 from google import genai
@@ -24,6 +25,20 @@ RETRYABLE_CODES = {429, 500, 502, 503, 504}
 # from a 429. counted per worker process. 0 turns it off
 MAX_RPM = int(os.getenv("LLM_MAX_RPM", "0"))
 
+# load testing only: canned replies instead of gemini, so the test measures the
+# api, queue, worker and sandbox rather than the free tier quota
+FAKE_LLM = os.getenv("FAKE_LLM") == "1"
+FAKE_LATENCY = float(os.getenv("FAKE_LLM_LATENCY", "1.5"))  # about the real per-agent P50
+FAKE_REPLIES = {
+    "Plan": {"subtasks": ["write add", "test add"], "approach_notes": "fake plan"},
+    "CodeResult": {
+        "code": "def add(a, b):\n    return a + b\n",
+        "test_code": "from solution import add\nassert add(2, 3) == 5\nassert add(-1, 1) == 0\n",
+        "explanation": "fake",
+    },
+    "Review": {"approved": True, "review_feedback": None},
+}
+
 
 class LLMError(Exception):
     pass
@@ -31,6 +46,9 @@ class LLMError(Exception):
 
 # one per worker process, shared by every task that worker runs
 breaker = CircuitBreaker("gemini")
+
+if FAKE_LLM:
+    log.warning("FAKE_LLM=1, gemini is not called (load testing only)")
 
 
 @cache
@@ -69,6 +87,9 @@ def _retry_delay(error, attempt):
 
 
 def _generate(prompt, schema):
+    if FAKE_LLM:
+        time.sleep(FAKE_LATENCY)
+        return SimpleNamespace(parsed=schema(**FAKE_REPLIES[schema.__name__]))
     return get_client().models.generate_content(
         model=MODEL,
         contents=prompt,

@@ -179,3 +179,15 @@ def test_half_open_after_cooldown(monkeypatch):
     breaker.record_success()
     assert breaker.failures == 0
     breaker.check()  # closed again
+
+
+def test_fake_mode_returns_every_agent_schema(monkeypatch):
+    from agents.coder import CodeResult
+    from agents.planner import Plan
+    from agents.reviewer import Review
+
+    monkeypatch.setattr(llm, "FAKE_LLM", True)
+    monkeypatch.setattr(llm, "FAKE_LATENCY", 0)
+    assert llm.ask_json("p", Plan).subtasks
+    assert "def add" in llm.ask_json("p", CodeResult).code
+    assert llm.ask_json("p", Review).approved is True
