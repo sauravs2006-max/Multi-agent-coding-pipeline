@@ -1,5 +1,6 @@
 import time
 
+import redis
 from fastapi import FastAPI, HTTPException, Request
 from prometheus_client import make_asgi_app
 from pydantic import BaseModel
@@ -14,8 +15,8 @@ api.mount("/metrics", make_asgi_app())
 
 @api.middleware("http")
 async def track_requests(request: Request, call_next):
-    if request.url.path.startswith("/metrics"):
-        return await call_next(request)  # don't count prometheus's own scrapes
+    if request.url.path.startswith("/metrics") or request.url.path == "/health":
+        return await call_next(request)  # don't count scrapes and healthchecks as traffic
     start = time.perf_counter()
     response = await call_next(request)
     # label with the route template (/tasks/{task_id}), not the real url,
@@ -28,6 +29,15 @@ async def track_requests(request: Request, call_next):
 
 class TaskRequest(BaseModel):
     task_description: str
+
+
+@api.get("/health")
+def health():
+    try:
+        celery_app.backend.client.ping()
+    except redis.exceptions.ConnectionError:
+        raise HTTPException(status_code=503, detail="redis unreachable")
+    return {"status": "ok"}
 
 
 @api.post("/tasks")

@@ -1,10 +1,14 @@
+import os
+
 from celery import Celery
 from celery.signals import before_task_publish
 
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
 celery_app = Celery(
     "pipeline_tasks",
-    broker="redis://localhost:6379/0",
-    backend="redis://localhost:6379/0",
+    broker=REDIS_URL,
+    backend=REDIS_URL,
     include=["pipeline_task"],
 )
 celery_app.conf.task_track_started = True

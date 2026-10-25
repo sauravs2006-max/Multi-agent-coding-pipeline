@@ -11,6 +11,25 @@ def fake_task(monkeypatch, state, result=None):
     monkeypatch.setattr(main.celery_app, "AsyncResult", lambda task_id: SimpleNamespace(state=state, result=result))
 
 
+class FakeRedis:
+    def __init__(self, up):
+        self.up = up
+
+    def ping(self):
+        if not self.up:
+            raise main.redis.exceptions.ConnectionError("down")
+        return True
+
+
+def test_health(monkeypatch):
+    # celery keeps one backend object per thread, so patch the class, not the instance
+    backend_class = type(main.celery_app.backend)
+    monkeypatch.setattr(backend_class, "client", property(lambda self: FakeRedis(up=True)))
+    assert client.get("/health").json() == {"status": "ok"}
+    monkeypatch.setattr(backend_class, "client", property(lambda self: FakeRedis(up=False)))
+    assert client.get("/health").status_code == 503
+
+
 def test_unknown_task_is_404(monkeypatch):
     fake_task(monkeypatch, "PENDING")
     assert client.get("/tasks/made-up-id").status_code == 404
