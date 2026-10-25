@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from pipeline_task import run_pipeline_task
@@ -20,12 +20,20 @@ def create_task(request: TaskRequest):
 @api.get("/tasks/{task_id}")
 def get_task(task_id: str):
     async_result = celery_app.AsyncResult(task_id)
+    state = async_result.state
 
-    if async_result.state == "PENDING":
+    if state == "PENDING":
+        raise HTTPException(status_code=404, detail="task not found")
+    elif state == "SENT":
+        return {"task_id": task_id, "status": "queued"}
+    elif state == "STARTED":
         return {"task_id": task_id, "status": "running"}
-    elif async_result.state == "SUCCESS":
-        return {"task_id": task_id, "status": "done", "result": async_result.result}
-    elif async_result.state == "FAILURE":
-        return {"task_id": task_id, "status": "failed", "error": str(async_result.result)}
+    elif state == "SUCCESS":
+        # the task finished, but the pipeline itself can still end as "failed"
+        result = async_result.result
+        return {"task_id": task_id, "status": result["status"], "result": result}
+    elif state == "FAILURE":
+        # crashed (gemini or docker down), different from the pipeline giving up
+        return {"task_id": task_id, "status": "error", "error": str(async_result.result)}
     else:
-        return {"task_id": task_id, "status": async_result.state}   
+        return {"task_id": task_id, "status": state}
