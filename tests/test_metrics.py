@@ -35,9 +35,14 @@ def test_tracked_counts_errors_and_reraises():
     assert value("pipeline_agent_duration_seconds_count", agent="broken") >= 1  # timed even when it fails
 
 
-@pytest.mark.parametrize("returncode, result", [(0, "passed"), (1, "failed"), (124, "timeout"), (137, "killed")])
-def test_sandbox_results_are_counted(monkeypatch, returncode, result):
-    monkeypatch.setattr(tester, "run_in_sandbox", lambda files, script: (returncode, "", ""))
+@pytest.mark.parametrize(
+    "exit_code, timed_out, oom_killed, result",
+    [(0, False, False, "passed"), (1, False, False, "failed"), (124, True, False, "timeout"),
+     (137, True, False, "timeout"), (137, False, True, "killed")],
+)
+def test_sandbox_results_are_counted(monkeypatch, exit_code, timed_out, oom_killed, result):
+    run = {"exit_code": exit_code, "stdout": "", "stderr": "", "timed_out": timed_out, "oom_killed": oom_killed}
+    monkeypatch.setattr(tester, "run_in_sandbox", lambda code, tests: run)
     before = value("sandbox_runs_total", result=result)
     tester.tester_node(PipelineState(task_description="t", code="x = 1", test_code="assert True"))
     assert value("sandbox_runs_total", result=result) == before + 1

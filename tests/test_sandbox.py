@@ -1,3 +1,5 @@
+import time
+
 import docker
 import pytest
 
@@ -16,8 +18,8 @@ def docker_available():
 needs_docker = pytest.mark.skipif(not docker_available(), reason="docker isn't running")
 
 
-def run(code):
-    return tester.run_in_sandbox({"main.py": code}, "main.py")
+def run(script, timeout=tester.TIMEOUT_SECONDS):
+    return tester.run_in_sandbox(code="", tests=script, timeout=timeout)
 
 
 @needs_docker
@@ -33,12 +35,13 @@ def test_tests_import_the_solution():
 
 
 @needs_docker
-def test_failing_assert():
+def test_failing_assert_keeps_stdout():
     state = PipelineState(task_description="t", code="def add(a, b):\n    return a - b",
-                          test_code="from solution import add\nassert add(2, 3) == 5")
+                          test_code="from solution import add\nprint('checking add')\nassert add(2, 3) == 5")
     result = tester.tester_node(state)
     assert not result["test_passed"]
     assert "AssertionError" in result["stderr"]
+    assert "checking add" in result["stdout"]  # lost with the old ContainerError version
 
 
 def test_missing_tests_fail_without_running():
@@ -48,60 +51,74 @@ def test_missing_tests_fail_without_running():
 
 
 @needs_docker
-def test_infinite_loop_times_out(monkeypatch):
-    monkeypatch.setattr(tester, "TIMEOUT_SECONDS", 2)
-    returncode, _, stderr = run("while True: pass")
-    assert returncode == 124
-    assert "Timed out" in stderr
+def test_infinite_loop_times_out():
+    result = run("while True: pass", timeout=2)
+    assert result["exit_code"] == 124
+    assert result["timed_out"]
+    assert "Timed out" in result["stderr"]
 
 
 @needs_docker
-def test_ignoring_sigterm_gets_killed(monkeypatch):
-    monkeypatch.setattr(tester, "TIMEOUT_SECONDS", 2)
-    code = "import signal\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\nwhile True: pass"
-    assert run(code)[0] == 137
+def test_ignoring_sigterm_gets_killed():
+    script = "import signal\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\nwhile True: pass"
+    result = run(script, timeout=2)
+    assert result["exit_code"] == 137
+    assert result["timed_out"]
+    assert not result["oom_killed"]
 
 
 @needs_docker
 def test_no_network():
-    returncode, _, stderr = run("import socket\nsocket.create_connection(('8.8.8.8', 53), timeout=3)")
-    assert returncode != 0
-    assert "Network is unreachable" in stderr
+    result = run("import socket\nsocket.create_connection(('8.8.8.8', 53), timeout=3)")
+    assert result["exit_code"] != 0
+    assert "Network is unreachable" in result["stderr"]
 
 
 @needs_docker
-def test_memory_limit():
-    assert run("x = bytearray(500 * 1024 * 1024)")[0] == 137
+def test_memory_limit_is_reported_as_oom():
+    result = run("x = bytearray(500 * 1024 * 1024)")
+    assert result["exit_code"] == 137
+    assert result["oom_killed"]
+    assert not result["timed_out"]
+    assert "out of memory" in result["stderr"]
 
 
 @needs_docker
 def test_fork_bomb_is_capped():
-    code = (
+    script = (
         "import os, time\n"
         "for _ in range(500):\n"
         "    if os.fork() == 0:\n"
         "        time.sleep(30)\n"
         "        os._exit(0)\n"
     )
-    returncode, _, stderr = run(code)
-    assert returncode != 0
-    assert "Resource temporarily unavailable" in stderr
+    result = run(script)
+    assert result["exit_code"] != 0
+    assert "Resource temporarily unavailable" in result["stderr"]
 
 
 @needs_docker
 def test_mount_is_read_only():
-    returncode, _, stderr = run("open('/code/hacked.txt', 'w').write('x')")
-    assert returncode != 0
-    assert "Read-only file system" in stderr
+    result = run("open('/code/hacked.txt', 'w').write('x')")
+    assert result["exit_code"] != 0
+    assert "Read-only file system" in result["stderr"]
 
 
 @needs_docker
-def test_long_output_is_trimmed():
-    state = PipelineState(task_description="t", code="", test_code="print('x' * 100_000)\nprint('end')")
-    stdout = tester.tester_node(state)["stdout"]
-    assert stdout.startswith("[output truncated]")
-    assert stdout.rstrip().endswith("end")
-    assert len(stdout) < tester.MAX_OUTPUT_CHARS + 100
+def test_runs_as_nobody():
+    result = run("import os\nprint(os.getuid())")
+    assert result["stdout"].strip() == "65534"
+
+
+@needs_docker
+def test_printing_forever_is_capped_and_stops_on_time():
+    start = time.monotonic()
+    result = run("i = 0\nwhile True:\n    print(i)\n    i += 1", timeout=3)
+    took = time.monotonic() - start
+    assert result["timed_out"]
+    assert result["stdout"].startswith("[output truncated]")
+    assert len(result["stdout"]) < tester.MAX_OUTPUT_CHARS + 100
+    assert took < 3 + 6  # the old version spent 8 more seconds pulling the output
 
 
 def test_docker_down_raises_sandbox_error(monkeypatch):
