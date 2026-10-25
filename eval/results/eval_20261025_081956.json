@@ -1,0 +1,302 @@
+{
+  "started": "20261025_081956",
+  "model": "gemini-flash-lite-latest",
+  "runs": [
+    {
+      "run": 1,
+      "results": [
+        {
+          "task": "e01_fizzbuzz",
+          "difficulty": "easy",
+          "status": "done",
+          "wall_seconds": 22.1,
+          "iterations": 2,
+          "approved": true,
+          "attempt_passes": [
+            true,
+            true
+          ],
+          "passed_first_try": true,
+          "passed_final": true,
+          "failure": null
+        },
+        {
+          "task": "e02_palindrome",
+          "difficulty": "easy",
+          "status": "done",
+          "wall_seconds": 12.0,
+          "iterations": 1,
+          "approved": true,
+          "attempt_passes": [
+            true
+          ],
+          "passed_first_try": true,
+          "passed_final": true,
+          "failure": null
+        },
+        {
+          "task": "e03_second_largest",
+          "difficulty": "easy",
+          "status": "done",
+          "wall_seconds": 6.0,
+          "iterations": 1,
+          "approved": true,
+          "attempt_passes": [
+            true
+          ],
+          "passed_first_try": true,
+          "passed_final": true,
+          "failure": null
+        },
+        {
+          "task": "e04_word_frequencies",
+          "difficulty": "easy",
+          "status": "done",
+          "wall_seconds": 10.0,
+          "iterations": 1,
+          "approved": true,
+          "attempt_passes": [
+            true
+          ],
+          "passed_first_try": true,
+          "passed_final": true,
+          "failure": null
+        },
+        {
+          "task": "e05_flatten",
+          "difficulty": "easy",
+          "status": "done",
+          "wall_seconds": 18.1,
+          "iterations": 1,
+          "approved": true,
+          "attempt_passes": [
+            true
+          ],
+          "passed_first_try": true,
+          "passed_final": true,
+          "failure": null
+        },
+        {
+          "task": "h01_expression_eval",
+          "difficulty": "hard",
+          "status": "done",
+          "wall_seconds": 28.1,
+          "iterations": 2,
+          "approved": true,
+          "attempt_passes": [
+            true,
+            true
+          ],
+          "passed_first_try": true,
+          "passed_final": true,
+          "failure": null
+        },
+        {
+          "task": "h02_shortest_path",
+          "difficulty": "hard",
+          "status": "done",
+          "wall_seconds": 24.1,
+          "iterations": 3,
+          "approved": true,
+          "attempt_passes": [
+            false,
+            true,
+            true
+          ],
+          "passed_first_try": false,
+          "passed_final": true,
+          "failure": null
+        },
+        {
+          "task": "h03_sudoku",
+          "difficulty": "hard",
+          "status": "done",
+          "wall_seconds": 14.0,
+          "iterations": 1,
+          "approved": true,
+          "attempt_passes": [
+            true
+          ],
+          "passed_first_try": true,
+          "passed_final": true,
+          "failure": null
+        },
+        {
+          "task": "h04_text_justify",
+          "difficulty": "hard",
+          "status": "done",
+          "wall_seconds": 36.1,
+          "iterations": 2,
+          "approved": true,
+          "attempt_passes": [
+            true,
+            true
+          ],
+          "passed_first_try": true,
+          "passed_final": true,
+          "failure": null
+        },
+        {
+          "task": "m01_roman",
+          "difficulty": "medium",
+          "status": "done",
+          "wall_seconds": 8.0,
+          "iterations": 1,
+          "approved": true,
+          "attempt_passes": [
+            true
+          ],
+          "passed_first_try": true,
+          "passed_final": true,
+          "failure": null
+        },
+        {
+          "task": "m02_merge_intervals",
+          "difficulty": "medium",
+          "status": "done",
+          "wall_seconds": 6.0,
+          "iterations": 1,
+          "approved": true,
+          "attempt_passes": [
+            true
+          ],
+          "passed_first_try": true,
+          "passed_final": true,
+          "failure": null
+        },
+        {
+          "task": "m03_lru_cache",
+          "difficulty": "medium",
+          "status": "done",
+          "wall_seconds": 22.1,
+          "iterations": 2,
+          "approved": true,
+          "attempt_passes": [
+            true,
+            true
+          ],
+          "passed_first_try": true,
+          "passed_final": true,
+          "failure": null
+        },
+        {
+          "task": "m04_parse_duration",
+          "difficulty": "medium",
+          "status": "done",
+          "wall_seconds": 30.1,
+          "iterations": 2,
+          "approved": true,
+          "attempt_passes": [
+            true,
+            true
+          ],
+          "passed_first_try": true,
+          "passed_final": true,
+          "failure": null
+        },
+        {
+          "task": "m05_balanced_brackets",
+          "difficulty": "medium",
+          "status": "done",
+          "wall_seconds": 18.1,
+          "iterations": 1,
+          "approved": true,
+          "attempt_passes": [
+            true
+          ],
+          "passed_first_try": true,
+          "passed_final": true,
+          "failure": null
+        },
+        {
+          "task": "m06_top_k_words",
+          "difficulty": "medium",
+          "status": "done",
+          "wall_seconds": 10.0,
+          "iterations": 1,
+          "approved": true,
+          "attempt_passes": [
+            true
+          ],
+          "passed_first_try": true,
+          "passed_final": true,
+          "failure": null
+        }
+      ],
+      "summary": {
+        "tasks": 15,
+        "pass_first_try": 0.933,
+        "pass_within_3": 1.0,
+        "avg_iterations_to_pass": 1.47,
+        "avg_iterations": 1.47,
+        "pipeline_errors": 0,
+        "false_approvals": 0,
+        "false_rejections": 0,
+        "rejected_correct_attempts": 6,
+        "pass_rate_by_difficulty": {
+          "easy": 1.0,
+          "medium": 1.0,
+          "hard": 1.0
+        },
+        "mean_wall_seconds": 17.7,
+        "total_wall_seconds": 264.8
+      }
+    }
+  ],
+  "aggregate": {
+    "pass_first_try": {
+      "mean": 0.933,
+      "min": 0.933,
+      "max": 0.933,
+      "stdev": 0.0
+    },
+    "pass_within_3": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0,
+      "stdev": 0.0
+    },
+    "avg_iterations_to_pass": {
+      "mean": 1.47,
+      "min": 1.47,
+      "max": 1.47,
+      "stdev": 0.0
+    },
+    "avg_iterations": {
+      "mean": 1.47,
+      "min": 1.47,
+      "max": 1.47,
+      "stdev": 0.0
+    },
+    "false_approvals": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdev": 0.0
+    },
+    "false_rejections": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdev": 0.0
+    },
+    "rejected_correct_attempts": {
+      "mean": 6,
+      "min": 6,
+      "max": 6,
+      "stdev": 0.0
+    },
+    "pipeline_errors": {
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "stdev": 0.0
+    },
+    "mean_wall_seconds": {
+      "mean": 17.7,
+      "min": 17.7,
+      "max": 17.7,
+      "stdev": 0.0
+    }
+  }
+}
