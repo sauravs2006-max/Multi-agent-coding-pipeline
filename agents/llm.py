@@ -8,6 +8,8 @@ import httpx
 from google import genai
 from google.genai import errors, types
 
+from metrics import CIRCUIT_OPEN, LLM_ATTEMPTS, LLM_CALLS, LLM_RETRIES
+
 log = logging.getLogger(__name__)
 
 MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
@@ -41,6 +43,7 @@ class CircuitBreaker:
         # half-open: let one call through, and a single failure reopens it
         self.opened_at = None
         self.failures = self.threshold - 1
+        CIRCUIT_OPEN.set(0)
 
     def record_success(self):
         self.failures = 0
@@ -49,6 +52,7 @@ class CircuitBreaker:
         self.failures += 1
         if self.failures >= self.threshold and self.opened_at is None:
             self.opened_at = time.monotonic()
+            CIRCUIT_OPEN.set(1)
             log.warning("circuit opened after %d failures", self.failures)
 
 
@@ -78,27 +82,43 @@ def _generate(prompt, schema):
 
 def ask_json(prompt, schema):
     """Call Gemini and return the reply parsed into the pydantic `schema`."""
+    try:
+        parsed = _ask_with_retries(prompt, schema)
+    except Exception:
+        LLM_CALLS.labels("failed").inc()
+        raise
+    LLM_CALLS.labels("success").inc()
+    return parsed
+
+
+def _ask_with_retries(prompt, schema):
     for attempt in range(1, MAX_ATTEMPTS + 1):
         breaker.check()
         try:
             response = _generate(prompt, schema)
         except errors.APIError as e:
             if e.code not in RETRYABLE_CODES:
+                LLM_ATTEMPTS.labels("client_error").inc()
                 raise  # bad key, bad request, unknown model: retrying won't fix it
+            LLM_ATTEMPTS.labels("rate_limited" if e.code == 429 else "server_error").inc()
             breaker.record_failure()
             last_error = e
         except httpx.TransportError as e:  # timeouts and dropped connections
+            LLM_ATTEMPTS.labels("timeout").inc()
             breaker.record_failure()
             last_error = e
         else:
             # gemini answered, so the service is fine even if the JSON isn't
             breaker.record_success()
             if response.parsed is not None:
+                LLM_ATTEMPTS.labels("ok").inc()
                 return response.parsed
+            LLM_ATTEMPTS.labels("bad_json").inc()
             last_error = LLMError("reply didn't match the schema")
 
         log.warning("gemini attempt %d/%d failed: %s", attempt, MAX_ATTEMPTS, last_error)
         if attempt < MAX_ATTEMPTS:
+            LLM_RETRIES.inc()
             time.sleep(BASE_DELAY * 2 ** (attempt - 1) + random.uniform(0, 1))
 
     raise LLMError(f"gemini failed after {MAX_ATTEMPTS} attempts: {last_error}") from last_error

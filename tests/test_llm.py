@@ -3,9 +3,14 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from google.genai import errors
+from prometheus_client import REGISTRY
 from pydantic import BaseModel
 
 from agents import llm
+
+
+def metric(name, **labels):
+    return REGISTRY.get_sample_value(name, labels) or 0.0
 
 
 class Answer(BaseModel):
@@ -79,6 +84,37 @@ def test_circuit_opens_and_fails_fast(monkeypatch):
     with pytest.raises(llm.CircuitOpenError):
         llm.ask_json("p", Answer)
     assert len(calls) == 5  # gemini wasn't called while open
+
+
+def test_metrics_count_attempts_and_retries(monkeypatch):
+    fake_generate(monkeypatch, [api_error(429), httpx.ReadTimeout("slow"), Answer(value=1)])
+    before = {
+        "rate_limited": metric("llm_attempts_total", result="rate_limited"),
+        "timeout": metric("llm_attempts_total", result="timeout"),
+        "ok": metric("llm_attempts_total", result="ok"),
+        "retries": metric("llm_retries_total"),
+        "calls": metric("llm_calls_total", outcome="success"),
+    }
+
+    llm.ask_json("p", Answer)
+
+    assert metric("llm_attempts_total", result="rate_limited") == before["rate_limited"] + 1
+    assert metric("llm_attempts_total", result="timeout") == before["timeout"] + 1
+    assert metric("llm_attempts_total", result="ok") == before["ok"] + 1
+    assert metric("llm_retries_total") == before["retries"] + 2
+    assert metric("llm_calls_total", outcome="success") == before["calls"] + 1
+
+
+def test_circuit_gauge(monkeypatch):
+    now = [1000.0]
+    monkeypatch.setattr(llm.time, "monotonic", lambda: now[0])
+    for _ in range(5):
+        llm.breaker.record_failure()
+    assert metric("llm_circuit_open") == 1
+
+    now[0] += 31
+    llm.breaker.check()  # half-open
+    assert metric("llm_circuit_open") == 0
 
 
 def test_half_open_after_cooldown(monkeypatch):

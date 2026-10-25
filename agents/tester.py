@@ -4,6 +4,8 @@ import tempfile
 
 import docker
 
+from metrics import SANDBOX_RUNS
+
 SANDBOX_IMAGE = "python:3.11-slim"
 TIMEOUT_SECONDS = 10
 MAX_OUTPUT_CHARS = 4000
@@ -66,8 +68,10 @@ def tester_node(state: PipelineState) -> dict:
     if state.test_code.strip():
         files = {CODE_FILE: state.code, TEST_FILE: state.test_code}
         returncode, stdout, stderr = run_in_sandbox(files, TEST_FILE)
+        SANDBOX_RUNS.labels({0: "passed", 124: "timeout", 137: "killed"}.get(returncode, "failed")).inc()
     else:
         returncode, stdout, stderr = 1, "", "No test_code was provided, so nothing was tested."
+        SANDBOX_RUNS.labels("no_tests").inc()
 
     test_passed = returncode == 0
 
