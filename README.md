@@ -14,23 +14,23 @@ with LangGraph. Everything else runs in Docker Compose.
 
 ```mermaid
 flowchart LR
-    client([client]) -- "POST /tasks<br/>GET /tasks/{id}" --> api[api<br/>FastAPI]
-    api -- enqueue --> redis[(redis<br/>broker + results)]
+    client([client]) -->|"POST /tasks, GET /tasks/{id}"| api["api (FastAPI)"]
+    api -->|enqueue| redis[("redis: broker + results")]
     redis --> planner
 
-    subgraph worker [worker: Celery, one LangGraph graph]
+    subgraph worker ["worker (Celery + LangGraph)"]
         direction LR
         planner[Planner] --> coder[Coder] --> tester[Tester] --> reviewer[Reviewer]
-        reviewer -- "rejected and<br/>under 3 iterations" --> coder
+        reviewer -->|"rejected, max 3"| coder
     end
 
-    planner & coder & reviewer -. "Gemini API<br/>retries, rate limit,<br/>circuit breaker" .-> gemini[(Gemini)]
-    tester -- "POST /run" --> sandbox[sandbox<br/>FastAPI]
-    sandbox -- docker.sock --> engine[(Docker engine)]
-    engine --> box[throwaway python:3.11-slim<br/>no network, 128 MB, 64 pids,<br/>read-only code, 10s timeout]
+    worker -.->|"retries, rate limit, breaker"| gemini[(Gemini API)]
+    tester -->|"POST /run"| sandbox["sandbox (FastAPI)"]
+    sandbox -->|docker.sock| engine[(Docker engine)]
+    engine --> box["throwaway python:3.11-slim: no network, 128 MB, 64 pids, read-only code, 10s timeout"]
 
-    prometheus[prometheus] -. scrape .-> api
-    prometheus -. scrape .-> worker
+    prometheus[prometheus] -.->|scrape| api
+    prometheus -.->|scrape| worker
     grafana[grafana] --> prometheus
 ```
 
