@@ -1,0 +1,3 @@
+-r requirements.txt
+-r sandbox/requirements.txt
+pytest>=8.0.0

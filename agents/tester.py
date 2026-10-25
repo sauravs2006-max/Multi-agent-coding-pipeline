@@ -1,92 +1,40 @@
 from .state import PipelineState
+from .breaker import CircuitBreaker, CircuitOpenError
 import os
-import tempfile
 
-import docker
-import requests
-from docker.types import LogConfig
+import httpx
 
 from metrics import SANDBOX_RUNS
 
-SANDBOX_IMAGE = "python:3.11-slim"
+SANDBOX_URL = os.getenv("SANDBOX_URL", "http://localhost:8080")
 TIMEOUT_SECONDS = 10
-MAX_OUTPUT_CHARS = 4000
-CODE_FILE = "solution.py"
-TEST_FILE = "test_solution.py"
+# the run itself can take TIMEOUT_SECONDS, plus container start, the SIGKILL grace and cleanup
+REQUEST_TIMEOUT = TIMEOUT_SECONDS + 20
 
-# docker keeps at most 1 MB of logs per container, so "print forever" can't fill memory
-LOG_CONFIG = LogConfig(type=LogConfig.types.JSON, config={"max-size": "1m", "max-file": "1"})
+# only counts the service being down or erroring. code that times out is the code's
+# fault and comes back as a normal result, so it never trips this
+breaker = CircuitBreaker("sandbox", threshold=3, cooldown=30)
 
 
 class SandboxError(Exception):
     pass
 
 
-def trim(text: str) -> str:
-    # keep the end, that's where the traceback and final results are
-    if len(text) <= MAX_OUTPUT_CHARS:
-        return text
-    return "[output truncated]\n" + text[-MAX_OUTPUT_CHARS:]
-
-
-def run_in_sandbox(code: str, tests: str, timeout: int = TIMEOUT_SECONDS) -> dict:
-    """Run the tests against the code in a throwaway container."""
+def run_in_sandbox(code: str, tests: str) -> dict:
+    breaker.check()
+    payload = {"code": code, "tests": tests, "timeout": TIMEOUT_SECONDS}
     try:
-        client = docker.from_env()
-    except docker.errors.DockerException as e:
-        # not the code's fault, so fail the task instead of sending it back to the coder
-        raise SandboxError("can't reach docker, is Docker Desktop running?") from e
+        response = httpx.post(f"{SANDBOX_URL}/run", json=payload, timeout=REQUEST_TIMEOUT)
+    except httpx.TransportError as e:  # refused, dns, or no answer in time
+        breaker.record_failure()
+        raise SandboxError(f"can't reach the sandbox service at {SANDBOX_URL}: {e!r}") from e
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        for name, content in ((CODE_FILE, code), (TEST_FILE, tests)):
-            with open(os.path.join(tmp_dir, name), "w", encoding="utf-8") as f:
-                f.write(content)
-
-        # SIGTERM at the timeout, SIGKILL 2s later if the code ignores it
-        command = ["timeout", "-k", "2", str(timeout), "python", f"/code/{TEST_FILE}"]
-        container = client.containers.run(
-            SANDBOX_IMAGE,
-            command,
-            volumes={tmp_dir: {"bind": "/code", "mode": "ro"}},
-            network_disabled=True,
-            mem_limit="128m",
-            memswap_limit="128m",  # otherwise it gets another 128m of swap
-            pids_limit=64,  # fork bombs
-            user="nobody",
-            cap_drop=["ALL"],
-            security_opt=["no-new-privileges"],
-            log_config=LOG_CONFIG,
-            detach=True,  # so stdout can still be read after a crash
-        )
-        try:
-            try:
-                exit_code = container.wait(timeout=timeout + 10)["StatusCode"]
-            except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
-                # backstop, the timeout inside the container should always fire first
-                container.kill()
-                exit_code = 137
-            container.reload()
-            oom_killed = container.attrs["State"]["OOMKilled"]
-            stdout = container.logs(stdout=True, stderr=False).decode("utf-8", errors="replace")
-            stderr = container.logs(stdout=False, stderr=True).decode("utf-8", errors="replace")
-        finally:
-            container.remove(force=True)
-            client.close()
-
-    # 137 without an OOM kill means it ignored SIGTERM and got SIGKILLed at the timeout
-    timed_out = exit_code == 124 or (exit_code == 137 and not oom_killed)
-    if oom_killed:
-        stderr += "\nKilled: out of memory (128 MB limit)"
-    elif timed_out:
-        stderr += f"\nTimed out after {timeout}s"
-
-    return {
-        "exit_code": exit_code,
-        "stdout": trim(stdout),
-        "stderr": trim(stderr),
-        "timed_out": timed_out,
-        "oom_killed": oom_killed,
-    }
+    if response.status_code >= 500:
+        breaker.record_failure()
+        raise SandboxError(f"sandbox service returned {response.status_code}: {response.text[:200]}")
+    breaker.record_success()
+    response.raise_for_status()  # a 4xx means we sent a bad request, that's a bug here
+    return response.json()
 
 
 def sandbox_result(run: dict) -> str:
@@ -101,7 +49,12 @@ def sandbox_result(run: dict) -> str:
 
 def tester_node(state: PipelineState) -> dict:
     if state.test_code.strip():
-        run = run_in_sandbox(state.code, state.test_code)
+        try:
+            run = run_in_sandbox(state.code, state.test_code)
+        except (SandboxError, CircuitOpenError):
+            # not the code's fault, so fail the task instead of sending it back to the coder
+            SANDBOX_RUNS.labels("unavailable").inc()
+            raise
         SANDBOX_RUNS.labels(sandbox_result(run)).inc()
     else:
         run = {"exit_code": 1, "stdout": "", "stderr": "No test_code was provided, so nothing was tested."}

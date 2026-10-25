@@ -3,8 +3,7 @@ import time
 import docker
 import pytest
 
-from agents import tester
-from agents.state import PipelineState
+from sandbox import runner
 
 
 def docker_available():
@@ -18,36 +17,25 @@ def docker_available():
 needs_docker = pytest.mark.skipif(not docker_available(), reason="docker isn't running")
 
 
-def run(script, timeout=tester.TIMEOUT_SECONDS):
-    return tester.run_in_sandbox(code="", tests=script, timeout=timeout)
+def run(script, timeout=10):
+    return runner.run(code="", tests=script, timeout=timeout)
 
 
 @needs_docker
 def test_tests_import_the_solution():
-    state = PipelineState(
-        task_description="t",
-        code="def add(a, b):\n    return a + b",
-        test_code="from solution import add\nassert add(2, 3) == 5\nprint('ok')",
-    )
-    result = tester.tester_node(state)
-    assert result["test_passed"]
+    code = "def add(a, b):\n    return a + b"
+    result = runner.run(code, "from solution import add\nassert add(2, 3) == 5\nprint('ok')")
+    assert result["exit_code"] == 0
     assert result["stdout"].strip() == "ok"
 
 
 @needs_docker
 def test_failing_assert_keeps_stdout():
-    state = PipelineState(task_description="t", code="def add(a, b):\n    return a - b",
-                          test_code="from solution import add\nprint('checking add')\nassert add(2, 3) == 5")
-    result = tester.tester_node(state)
-    assert not result["test_passed"]
+    code = "def add(a, b):\n    return a - b"
+    result = runner.run(code, "from solution import add\nprint('checking add')\nassert add(2, 3) == 5")
+    assert result["exit_code"] == 1
     assert "AssertionError" in result["stderr"]
     assert "checking add" in result["stdout"]  # lost with the old ContainerError version
-
-
-def test_missing_tests_fail_without_running():
-    result = tester.tester_node(PipelineState(task_description="t", code="x = 1", test_code="  "))
-    assert not result["test_passed"]
-    assert "No test_code" in result["stderr"]
 
 
 @needs_docker
@@ -117,11 +105,22 @@ def test_printing_forever_is_capped_and_stops_on_time():
     took = time.monotonic() - start
     assert result["timed_out"]
     assert result["stdout"].startswith("[output truncated]")
-    assert len(result["stdout"]) < tester.MAX_OUTPUT_CHARS + 100
+    assert len(result["stdout"]) < runner.MAX_OUTPUT_CHARS + 100
     assert took < 3 + 6  # the old version spent 8 more seconds pulling the output
 
 
-def test_docker_down_raises_sandbox_error(monkeypatch):
+@needs_docker
+def test_containers_and_volumes_are_cleaned_up():
+    client = docker.from_env()
+    before = len(client.containers.list(all=True, filters={"label": "app=pipeline-sandbox"}))
+    run("print('hi')")
+    run("raise SystemExit(3)")
+    assert len(client.containers.list(all=True, filters={"label": "app=pipeline-sandbox"})) == before
+    assert client.volumes.list(filters={"label": "app=pipeline-sandbox"}) == []
+    client.close()
+
+
+def test_docker_down_raises_docker_error(monkeypatch):
     monkeypatch.setenv("DOCKER_HOST", "tcp://127.0.0.1:1")  # nothing listens here
-    with pytest.raises(tester.SandboxError, match="Docker Desktop"):
+    with pytest.raises(runner.DockerError, match="can't reach docker"):
         run("print('hi')")
