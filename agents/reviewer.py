@@ -12,6 +12,8 @@ class Review(BaseModel):
 def reviewer_node(state: PipelineState) -> dict:
     prompt = f"""You are a code review agent. Review this code, its tests and the test results.
 
+Task: {state.task_description}
+
 Code (solution.py):
 {state.code}
 
@@ -22,8 +24,8 @@ Test passed: {state.test_passed}
 Stdout: {state.stdout}
 Stderr: {state.stderr}
 
-Approve only if the code is correct and the tests actually check the task,
-including edge cases. Tests that assert nothing meaningful are not enough.
+Approve only if the code does what the task asks and the tests actually check
+the task, including edge cases. Tests that assert nothing meaningful are not enough.
 If not approved, explain exactly what needs to be fixed in review_feedback."""
 
     review = ask_json(prompt, Review)
