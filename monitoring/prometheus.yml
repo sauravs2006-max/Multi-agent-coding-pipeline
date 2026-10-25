@@ -2,12 +2,16 @@ global:
   scrape_interval: 5s  # short so a few local test runs show up quickly
 
 scrape_configs:
-  # the api and worker run on the host for now, outside docker
   - job_name: api
     metrics_path: /metrics/
     static_configs:
-      - targets: ["host.docker.internal:8000"]
+      - targets: ["api:8000"]
 
+  # dns lookup instead of a fixed target, so every replica gets scraped
+  # after `docker compose up --scale worker=N`
   - job_name: worker
-    static_configs:
-      - targets: ["host.docker.internal:8001"]
+    dns_sd_configs:
+      - names: ["worker"]
+        type: A
+        port: 8001
+        refresh_interval: 10s

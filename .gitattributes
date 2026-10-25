@@ -1,0 +1,4 @@
+# the images are linux, so keep LF even on a windows checkout
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary

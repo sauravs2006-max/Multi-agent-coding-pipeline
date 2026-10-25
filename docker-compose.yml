@@ -1,14 +1,87 @@
-# just monitoring for now. the api, worker and redis move in here in the docker compose step
+x-app: &app
+  build: .
+  image: pipeline-app
+  restart: unless-stopped
+
 services:
+  redis:
+    image: redis:7.4.2
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # the only service with the docker socket
+  sandbox:
+    build:
+      context: .
+      dockerfile: sandbox/Dockerfile
+    image: pipeline-sandbox
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 120s  # first start pulls python:3.11-slim
+
+  worker:
+    <<: *app
+    # solo pool: one process, so the circuit breakers, the rate limiter and the
+    # /metrics endpoint all see every task. scale with more containers instead
+    command: ["celery", "-A", "celery_app", "worker", "--pool=solo", "--loglevel=info"]
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      SANDBOX_URL: http://sandbox:8080
+      LLM_MAX_RPM: ${LLM_MAX_RPM:-14}  # per worker, the free tier allows 15/min in total
+    depends_on:
+      redis:
+        condition: service_healthy
+      sandbox:
+        condition: service_healthy
+    healthcheck:
+      # the metrics server runs in its own thread, so it answers even mid-task
+      # (celery inspect ping can't with the solo pool)
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/metrics', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    <<: *app
+    command: ["uvicorn", "main:api", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   prometheus:
     image: prom/prometheus:v3.5.0
+    restart: unless-stopped
     ports:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - api
+      - worker
 
   grafana:
     image: grafana/grafana:12.0.2
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
