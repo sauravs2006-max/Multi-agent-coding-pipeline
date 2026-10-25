@@ -1,9 +1,12 @@
 from .state import PipelineState
-import json
-from google import genai
-import os
+from .llm import ask_json
+from pydantic import BaseModel
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+class CodeResult(BaseModel):
+    code: str
+    file_name: str
+    explanation: str
 
 
 def coder_node(state: PipelineState) -> dict:
@@ -14,28 +17,14 @@ def coder_node(state: PipelineState) -> dict:
     prompt = f"""You are a coding agent. Implement the following task in Python.
 
 Task: {state.task_description}
-Subtasks: {state.subtasks}{retry_context}
+Subtasks: {state.subtasks}{retry_context}"""
 
-Respond ONLY with JSON in this exact format, no other text:
-{{"code": "...", "file_name": "...", "explanation": "..."}}"""
-
-    response = client.models.generate_content(
-        model="gemini-flash-lite-latest",
-        contents=prompt,
-    )
-
-    raw = response.text.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        raw = raw.strip()
-    parsed = json.loads(raw)
+    result = ask_json(prompt, CodeResult)
 
     return {
-        "code": parsed["code"],
-        "file_name": parsed["file_name"],
-        "explanation": parsed["explanation"],
+        "code": result.code,
+        "file_name": result.file_name,
+        "explanation": result.explanation,
         "status": "testing",
         "iteration_count": state.iteration_count + 1,
     }

@@ -1,9 +1,12 @@
 from .state import PipelineState
-import json
-from google import genai
-import os
+from .llm import ask_json
+from pydantic import BaseModel
+from typing import Optional
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+class Review(BaseModel):
+    approved: bool
+    review_feedback: Optional[str] = None
 
 
 def reviewer_node(state: PipelineState) -> dict:
@@ -17,26 +20,11 @@ Stdout: {state.stdout}
 Stderr: {state.stderr}
 
 If the code is correct and tests passed, approve it.
-If not, explain exactly what needs to be fixed.
+If not, explain exactly what needs to be fixed in review_feedback."""
 
-Respond ONLY with JSON in this exact format, no other text:
-{{"approved": true/false, "review_feedback": "..." or null}}"""
+    review = ask_json(prompt, Review)
 
-    response = client.models.generate_content(
-        model="gemini-flash-lite-latest",
-        contents=prompt,
-    )
-
-    raw = response.text.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        raw = raw.strip()
-
-    parsed = json.loads(raw)
-
-    if parsed["approved"]:
+    if review.approved:
         status = "done"
     elif state.iteration_count >= state.max_iterations:
         status = "failed"
@@ -44,7 +32,7 @@ Respond ONLY with JSON in this exact format, no other text:
         status = "coding"
 
     return {
-        "approved": parsed["approved"],
-        "review_feedback": parsed.get("review_feedback"),
+        "approved": review.approved,
+        "review_feedback": review.review_feedback,
         "status": status,
     }
