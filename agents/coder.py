@@ -34,6 +34,9 @@ Fix the problems in your new version."""
 Task: {state.task_description}
 Subtasks: {state.subtasks}
 
+Use only the Python standard library. The code runs in a sandbox with no
+network and no third-party packages installed.
+
 Your code is saved as solution.py. Keep it to the implementation, with no
 top-level tests or demo prints.
 
