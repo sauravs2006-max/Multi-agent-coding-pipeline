@@ -105,7 +105,7 @@ def summarize(results):
         "false_approvals": sum(1 for r in results if r["approved"] and not r["passed_final"]),
         # the pipeline gave up on code that actually passes the hidden tests
         "false_rejections": sum(1 for r in results if r["status"] == "failed" and r["passed_final"]),
-        # an earlier attempt already passed the hidden tests but the reviewer sent it back anyway
+        # tasks where an earlier attempt already passed the hidden tests but the reviewer sent it back anyway
         "rejected_correct_attempts": sum(1 for r in results if any(r.get("attempt_passes", [])[:-1])),
         "pass_rate_by_difficulty": by_difficulty,
         "mean_wall_seconds": round(statistics.mean(r["wall_seconds"] for r in results), 1),
@@ -121,13 +121,16 @@ def spread(values):
             "stdev": round(statistics.stdev(values), 3) if len(values) > 1 else 0.0}
 
 
-def write_markdown(path, runs, aggregate):
-    lines = ["# Eval results", "", f"{len(runs)} run(s) of {runs[0]['summary']['tasks']} tasks.", "",
+def write_markdown(path, runs, aggregate, note=None):
+    lines = ["# Eval results", "", f"{len(runs)} run(s) of {runs[0]['summary']['tasks']} tasks."]
+    if note:
+        lines.append(f"Note: {note}.")
+    lines += ["",
              "## Summary", "", "| metric | mean | min | max | stdev |", "|---|---|---|---|---|"]
     for name, stats in aggregate.items():
         if stats:
             lines.append(f"| {name} | {stats['mean']} | {stats['min']} | {stats['max']} | {stats['stdev']} |")
-    lines += ["", "## Per task", "", "| task | difficulty | " + " | ".join(f"run {i + 1}" for i in range(len(runs))) + " |",
+    lines += ["", "## Per task", "", "| task | difficulty | " + " | ".join(f"run {run['run']}" for run in runs) + " |",
               "|---|---|" + "---|" * len(runs)]
     for i, row in enumerate(runs[0]["results"]):
         cells = []
@@ -139,7 +142,7 @@ def write_markdown(path, runs, aggregate):
                 mark = "pass" if r["passed_final"] else "FAIL"
                 cells.append(f"{mark} ({r['iterations']} it, {r['wall_seconds']}s)")
         lines.append(f"| {row['task']} | {row['difficulty']} | " + " | ".join(cells) + " |")
-    failures = [(i + 1, r) for i, run in enumerate(runs) for r in run["results"] if r["failure"]]
+    failures = [(run["run"], r) for run in runs for r in run["results"] if r["failure"]]
     if failures:
         lines += ["", "## Failures", "", "| run | task | reason |", "|---|---|---|"]
         for run_number, r in failures:
@@ -164,7 +167,14 @@ def main():
     parser.add_argument("--api", default=os.getenv("API_URL", "http://localhost:8000"))
     parser.add_argument("--sandbox", default=os.getenv("SANDBOX_URL", "http://localhost:8080"))
     parser.add_argument("--check-references", action="store_true")
+    parser.add_argument("--combine", nargs="+", metavar="JSON", help="merge earlier result files instead of running")
+    parser.add_argument("--drop", type=int, nargs="*", default=[], help="with --combine: run numbers to leave out")
+    parser.add_argument("--name", default="combined", help="with --combine: output file name")
     args = parser.parse_args()
+
+    if args.combine:
+        combine(args.combine, args.drop, args.name)
+        return
 
     tasks = load_tasks(args.tasks.split(",") if args.tasks else None)
     client = httpx.Client(timeout=30)
@@ -185,18 +195,35 @@ def main():
         runs.append({"run": run_number, "results": results, "summary": summarize(results)})
         print(f"run {run_number} summary: {json.dumps(runs[-1]['summary'])}", flush=True)
 
-    metrics = ["pass_first_try", "pass_within_3", "avg_iterations_to_pass", "avg_iterations",
-               "false_approvals", "false_rejections", "rejected_correct_attempts", "pipeline_errors",
-               "mean_wall_seconds"]
-    aggregate = {m: spread([run["summary"][m] for run in runs]) for m in metrics}
+    save(runs, datetime.now().strftime("%Y%m%d_%H%M%S"))
 
+
+METRICS = ["pass_first_try", "pass_within_3", "avg_iterations_to_pass", "avg_iterations", "false_approvals",
+           "false_rejections", "rejected_correct_attempts", "pipeline_errors", "mean_wall_seconds"]
+
+
+def save(runs, name, note=None):
+    aggregate = {m: spread([run["summary"][m] for run in runs]) for m in METRICS}
+    out = {"name": name, "model": os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest"), "note": note,
+           "runs": runs, "aggregate": aggregate}
     RESULTS_DIR.mkdir(exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out = {"started": stamp, "model": os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest"), "runs": runs,
-           "aggregate": aggregate}
-    (RESULTS_DIR / f"eval_{stamp}.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
-    write_markdown(RESULTS_DIR / f"eval_{stamp}.md", runs, aggregate)
-    print(f"saved eval/results/eval_{stamp}.json and .md")
+    (RESULTS_DIR / f"eval_{name}.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
+    write_markdown(RESULTS_DIR / f"eval_{name}.md", runs, aggregate, note)
+    print(f"saved eval/results/eval_{name}.json and .md")
+
+
+def combine(paths, drop, name):
+    """Merge runs from earlier result files, renumbered in order, optionally leaving some out."""
+    runs = []
+    for path in paths:
+        runs += json.loads(Path(path).read_text(encoding="utf-8"))["runs"]
+    for number, run in enumerate(runs, 1):
+        run["run"] = number
+    note = f"combined from {', '.join(Path(p).name for p in paths)}"
+    if drop:
+        note += f"; left out run(s) {', '.join(map(str, drop))}"
+        runs = [run for run in runs if run["run"] not in drop]
+    save(runs, name, note)
 
 
 if __name__ == "__main__":
