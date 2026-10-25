@@ -2,6 +2,20 @@
 
 Raw locust output (CSV, HTML, logs) is in this folder.
 
+### real
+
+| users | tasks done | tasks/min | end-to-end P50 / P95 (s) | queue wait P50 / P95 (s) | processing P50 / P95 (s) | POST /tasks P95 (ms) | GET P95 (ms) | failures |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 13 | 4.4 | 11.0 / 21.0 | 0.5 / 0.5 | 10.0 / 20.0 | 15 | 9 | 0/370 |
+| 3 | 13 | 4.4 | 38.0 / 47.0 | 24.0 / 34.0 | 13.0 / 19.0 | 68 | 9 | 0/1077 |
+
+Per-agent latency from Prometheus, P50 / P95 in seconds:
+
+| users | planner | coder | tester | reviewer |
+|---|---|---|---|---|
+| 1 | 1.80 / 11.20 | 1.86 / 13.60 | 0.75 / 0.97 | 1.75 / 10.80 |
+| 3 | 5.00 / 10.40 | 3.67 / 13.40 | 0.75 / 0.97 | 1.50 / 10.80 |
+
 ### fake
 
 | users | tasks done | tasks/min | end-to-end P50 / P95 (s) | queue wait P50 / P95 (s) | processing P50 / P95 (s) | POST /tasks P95 (ms) | GET P95 (ms) | failures |
